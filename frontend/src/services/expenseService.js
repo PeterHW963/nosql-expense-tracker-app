@@ -1,132 +1,88 @@
 /**
- * TEMPORARY FRONTEND-ONLY STUB SERVICE
+ * MONGODB IMPLEMENTATION
  *
- * This file currently uses in-memory mock data so the UI can be built
- * before connecting to a real backend.
- *
- * Later:
- * - Firestore branch:
- *   replace these functions with Firestore CRUD + onSnapshot
- * - MongoDB branch:
- *   replace these functions with REST API calls
- *
- * Nothing in this file writes to a real database yet.
+ * This file replaces the frontend-only stub service
  */
 
-// -----------------------------------------------------------------------------
-// TEMPORARY MOCK DATA
-// -----------------------------------------------------------------------------
-// This is NOT real seed data for Firestore or MongoDB.
-// It only exists in browser memory so the UI has sample rows on first load only.
-// If you want a blank initial UI. Just do expenses = []
-
-let expenses = [
-  {
-    id: "1",
-    name: "Lunch",
-    category: "Food",
-    date: "2026-03-19",
-    amount: 6.0,
-    location: "Deck",
-    description: "Japanese Chicken Katsu Curry Rice",
-  },
-  {
-    id: "2",
-    name: "Bus back home",
-    category: "Transport",
-    date: "2026-03-18",
-    amount: 1.6,
-    location: "",
-    description: "",
-  },
-];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // -----------------------------------------------------------------------------
-// STUB REALTIME LISTENER
+// READ ALL
 // -----------------------------------------------------------------------------
-// This simulates Firestore's real-time subscription behavior on the frontend.
-// Later:
-// - Firestore branch: replace with onSnapshot(...)
-// - MongoDB branch: can remove
+// GET endpoint /expenses. fetch defaults to GET unless specified otherwise
 
-let listeners = [];
+export async function listExpenses() {
+  const response = await fetch(`${API_BASE_URL}/expenses`);
+  const data = await response.json();
 
-const notifyListeners = () => {
-  const snapshot = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
-  listeners.forEach((listener) => listener(snapshot));
-};
+  if (!response.ok) {
+    // note: ok field comes from the fetch API response obj created by browser. Not from the API, not from express, not from mongo
+    console.error(data.message);
+  }
 
-// -----------------------------------------------------------------------------
-// STUB READ ALL
-// -----------------------------------------------------------------------------
-// - Firestore branch: query Firestore collection/documents
-// - MongoDB branch: fetch from REST API endpoint like GET /expenses
-
-export const listExpenses = async () => {
-  return [...expenses].sort((a, b) => b.date.localeCompare(a.date));
-};
+  return data;
+}
 
 // -----------------------------------------------------------------------------
-// STUB CREATE EXPENSE
+// CREATE EXPENSE
 // -----------------------------------------------------------------------------
-// - Firestore branch: addDoc(...)
-// - MongoDB branch: REST API endpoint POST /expenses
+// POST endpoint /expenses. javascript function only has fetch and no post.
 
-export const createExpense = async (expenseData) => {
-  const newExpense = {
-    ...expenseData,
-    id: crypto.randomUUID(),
-    amount: Number(expenseData.amount),
-  };
+export async function createExpense(expenseData) {
+  const response = await fetch(`${API_BASE_URL}/expenses`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json", // u need this to tell API that the body of req is JSON
+    },
+    body: JSON.stringify(expenseData),
+  });
 
-  expenses = [newExpense, ...expenses];
-  notifyListeners();
-  return newExpense;
-};
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error(data.message);
+  }
+
+  return data;
+}
 
 // -----------------------------------------------------------------------------
-// STUB: UPDATE EXPENSE
+// UPDATE EXPENSE
 // -----------------------------------------------------------------------------
-// - Firestore branch: updateDoc(...)
-// - MongoDB branch: REST API endpoint PUT /expenses/:id
+// PUT endpoint /expenses/:id
 
 export const updateExpense = async (id, updatedData) => {
-  expenses = expenses.map((expense) =>
-    expense.id === id
-      ? {
-          ...expense,
-          ...updatedData,
-          amount: Number(updatedData.amount),
-        }
-      : expense,
-  );
+  const response = await fetch(`${API_BASE_URL}/expenses/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(updatedData),
+  });
 
-  notifyListeners();
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error(data.message);
+  }
+  return data;
 };
 
 // -----------------------------------------------------------------------------
-// STUB: DELETE EXPENSE
+// DELETE EXPENSE
 // -----------------------------------------------------------------------------
-// - Firestore branch: deleteDoc(...)
-// - MongoDB branch: REST API endpoint DELETE /expenses/:id
+// DELETE endpoint /expenses/:id
 
 export const deleteExpense = async (id) => {
-  expenses = expenses.filter((expense) => expense.id !== id);
-  notifyListeners();
-};
+  const response = await fetch(`${API_BASE_URL}/expenses/${id}`, {
+    method: "DELETE",
+  });
 
-// -----------------------------------------------------------------------------
-// STUB: REALTIME SUBSCRIPTION
-// -----------------------------------------------------------------------------
-// - Firestore branch: use onSnapshot(...)
-// - MongoDB branch: remove
-// Must return an unsubscribe function so App.jsx can clean it up.
+  const data = await response.json();
 
-export const subscribeToExpenses = (callback) => {
-  listeners.push(callback);
-  callback([...expenses].sort((a, b) => b.date.localeCompare(a.date)));
+  if (!response.ok) {
+    console.error(data.message);
+  }
 
-  return () => {
-    listeners = listeners.filter((listener) => listener !== callback);
-  };
+  return data;
 };
