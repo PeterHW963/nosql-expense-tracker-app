@@ -129,6 +129,9 @@ function App() {
       </header>
 
       <main className="main-layout">
+        {!SHOW_REALTIME_STATUS && lastEvent && (
+          <p className="status-text">{lastEvent}</p>
+        )}
         {SHOW_REALTIME_STATUS && (
           <RealtimeStatus
             connectionLabel="Realtime enabled"
