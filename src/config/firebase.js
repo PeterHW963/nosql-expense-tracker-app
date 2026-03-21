@@ -4,7 +4,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// ADD YOUR FIREBASE WEB APP CONFIG HERE
+// FIREBASE WEB APP CONFIG
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
