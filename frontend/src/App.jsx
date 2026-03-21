@@ -39,7 +39,7 @@ function App() {
       setIsSaving(true);
 
       if (editingExpense) {
-        await updateExpense(editingExpense.id, expenseData);
+        await updateExpense(editingExpense._id, expenseData);
         setLastEvent(`Updated "${expenseData.name}"`);
         setEditingExpense(null);
         setIsFormExpanded(false);
@@ -66,13 +66,13 @@ function App() {
 
   const handleDeleteExpense = async (id) => {
     try {
-      const target = expenses.find((expense) => expense.id === id);
+      const target = expenses.find((expense) => expense._id === id);
 
       await deleteExpense(id);
 
       setLastEvent(`Deleted "${target?.name || "expense"}"`);
 
-      if (editingExpense?.id === id) {
+      if (editingExpense?._id === id) {
         setEditingExpense(null);
         setIsFormExpanded(false);
       }

@@ -26,7 +26,10 @@ function ExpenseItem({ expense, onEdit, onDelete }) {
         <button className="btn btn-secondary" onClick={() => onEdit(expense)}>
           Edit
         </button>
-        <button className="btn btn-danger" onClick={() => onDelete(expense.id)}>
+        <button
+          className="btn btn-danger"
+          onClick={() => onDelete(expense._id)}
+        >
           Delete
         </button>
       </div>
