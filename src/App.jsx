@@ -5,9 +5,11 @@ import RealtimeStatus from "./components/RealtimeStatus";
 import {
   createExpense,
   deleteExpense,
-  listExpenses,
+  // listExpenses,
   updateExpense,
+  subscribeToExpenses,
 } from "./services/expenseService";
+import { auth } from "./config/firebase";
 
 // Toggle this:
 // true  = Firestore
@@ -21,17 +23,40 @@ function App() {
   const [lastEvent, setLastEvent] = useState("");
   const [isFormExpanded, setIsFormExpanded] = useState(false);
 
-  const loadExpenses = async () => {
-    try {
-      const data = await listExpenses();
-      setExpenses(data);
-    } catch (error) {
-      console.error("Failed to load expenses:", error);
-    }
-  };
+  // const loadExpenses = async () => {
+  //   try {
+  //     const data = await listExpenses();
+  //     setExpenses(data);
+  //   } catch (error) {
+  //     console.error("Failed to load expenses:", error);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   loadExpenses();
+  // }, []);
 
   useEffect(() => {
-    loadExpenses();
+    let unsubscribe;
+
+    const setupSubscription = async () => {
+      try {
+        unsubscribe = await subscribeToExpenses((data) => {
+          setExpenses(data);
+        });
+      } catch (error) {
+        console.error("Failed to subscribe to expenses:", error);
+      }
+    };
+
+    setupSubscription();
+
+    // the fn below is invoked when u unmount the component
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   const handleSubmitExpense = async (expenseData) => {
@@ -48,7 +73,7 @@ function App() {
         setLastEvent(`Created "${expenseData.name}"`);
       }
 
-      await loadExpenses();
+      // await loadExpenses();
     } catch (error) {
       console.error("Failed to save expense:", error);
       setLastEvent("Error while saving");
@@ -77,7 +102,7 @@ function App() {
         setIsFormExpanded(false);
       }
 
-      await loadExpenses();
+      // await loadExpenses();
     } catch (error) {
       console.error("Failed to delete expense:", error);
       setLastEvent("Error while deleting");
@@ -107,7 +132,7 @@ function App() {
         {SHOW_REALTIME_STATUS && (
           <RealtimeStatus
             connectionLabel="Realtime enabled"
-            userLabel="demo-user-anonymous"
+            userLabel={auth.currentUser?.uid}
             lastEvent={lastEvent}
           />
         )}

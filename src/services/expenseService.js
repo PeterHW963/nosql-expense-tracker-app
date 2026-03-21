@@ -1,132 +1,140 @@
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  where,
+  onSnapshot,
+  orderBy,
+  query,
+  updateDoc,
+} from "firebase/firestore";
+import { db, ensureAnonymousAuth } from "../config/firebase";
+
 /**
- * TEMPORARY FRONTEND-ONLY STUB SERVICE
+ * FIREBASE IMPLEMENTATION
  *
- * This file currently uses in-memory mock data so the UI can be built
- * before connecting to a real backend.
+ * This file replaces the frontend-only stub service.
  *
- * Later:
- * - Firestore branch:
- *   replace these functions with Firestore CRUD + onSnapshot
- * - MongoDB branch:
- *   replace these functions with REST API calls
- *
- * Nothing in this file writes to a real database yet.
  */
 
-// -----------------------------------------------------------------------------
-// TEMPORARY MOCK DATA
-// -----------------------------------------------------------------------------
-// This is NOT real seed data for Firestore or MongoDB.
-// It only exists in browser memory so the UI has sample rows on first load only.
-// If you want a blank initial UI. Just do expenses = []
+const EXPENSES_COLLECTION = "expenses";
 
-let expenses = [
-  {
-    id: "1",
-    name: "Lunch",
-    category: "Food",
-    date: "2026-03-19",
-    amount: 6.0,
-    location: "Deck",
-    description: "Japanese Chicken Katsu Curry Rice",
-  },
-  {
-    id: "2",
-    name: "Bus back home",
-    category: "Transport",
-    date: "2026-03-18",
-    amount: 1.6,
-    location: "",
-    description: "",
-  },
-];
+// remove notifyListeners() because we are using realtime listener
 
 // -----------------------------------------------------------------------------
-// STUB REALTIME LISTENER
+// READ ALL
 // -----------------------------------------------------------------------------
-// This simulates Firestore's real-time subscription behavior on the frontend.
-// Later:
-// - Firestore branch: replace with onSnapshot(...)
-// - MongoDB branch: can remove
-
-let listeners = [];
-
-const notifyListeners = () => {
-  const snapshot = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
-  listeners.forEach((listener) => listener(snapshot));
-};
-
-// -----------------------------------------------------------------------------
-// STUB READ ALL
-// -----------------------------------------------------------------------------
-// - Firestore branch: query Firestore collection/documents
-// - MongoDB branch: fetch from REST API endpoint like GET /expenses
-
+// Firestore uses getDocs to fetch multiple documents from a collection
 export const listExpenses = async () => {
-  return [...expenses].sort((a, b) => b.date.localeCompare(a.date));
-};
+  const user = await ensureAnonymousAuth();
 
-// -----------------------------------------------------------------------------
-// STUB CREATE EXPENSE
-// -----------------------------------------------------------------------------
-// - Firestore branch: addDoc(...)
-// - MongoDB branch: REST API endpoint POST /expenses
-
-export const createExpense = async (expenseData) => {
-  const newExpense = {
-    ...expenseData,
-    id: crypto.randomUUID(),
-    amount: Number(expenseData.amount),
-  };
-
-  expenses = [newExpense, ...expenses];
-  notifyListeners();
-  return newExpense;
-};
-
-// -----------------------------------------------------------------------------
-// STUB: UPDATE EXPENSE
-// -----------------------------------------------------------------------------
-// - Firestore branch: updateDoc(...)
-// - MongoDB branch: REST API endpoint PUT /expenses/:id
-
-export const updateExpense = async (id, updatedData) => {
-  expenses = expenses.map((expense) =>
-    expense.id === id
-      ? {
-          ...expense,
-          ...updatedData,
-          amount: Number(updatedData.amount),
-        }
-      : expense,
+  const expensesRef = collection(db, EXPENSES_COLLECTION);
+  const expensesQuery = query(
+    expensesRef,
+    where("userId", "==", user.uid),
+    orderBy("date", "desc"),
   );
 
-  notifyListeners();
+  const snapshot = await getDocs(expensesQuery);
+
+  return snapshot.docs.map((documentSnapshot) => ({
+    id: documentSnapshot.id,
+    ...documentSnapshot.data(),
+  }));
 };
 
 // -----------------------------------------------------------------------------
-// STUB: DELETE EXPENSE
+// CREATE EXPENSE
 // -----------------------------------------------------------------------------
-// - Firestore branch: deleteDoc(...)
-// - MongoDB branch: REST API endpoint DELETE /expenses/:id
+// Firestore uses addDoc to add a document into the specific collection.
+// Note that no schema needs to be declared beforehand
+
+export const createExpense = async (expenseData) => {
+  const user = await ensureAnonymousAuth();
+  const newExpense = {
+    name: expenseData.name,
+    category: expenseData.category,
+    date: expenseData.date,
+    amount: Number(expenseData.amount),
+    location: expenseData.location || "",
+    description: expenseData.description || "",
+    userId: user.uid,
+  };
+
+  const docRef = await addDoc(collection(db, EXPENSES_COLLECTION), newExpense);
+  return {
+    id: docRef.id,
+    ...newExpense,
+  };
+};
+
+// -----------------------------------------------------------------------------
+// UPDATE EXPENSE
+// -----------------------------------------------------------------------------
+// Firestore uses updateDoc(...) for editing existing documents
+// doc function is also used to get reference of document to edit
+
+export const updateExpense = async (id, updatedData) => {
+  await ensureAnonymousAuth();
+
+  const expenseRef = doc(db, EXPENSES_COLLECTION, id);
+
+  await updateDoc(expenseRef, {
+    name: updatedData.name,
+    category: updatedData.category,
+    date: updatedData.date,
+    amount: Number(updatedData.amount),
+    location: updatedData.location || "",
+    description: updatedData.description || "",
+  });
+};
+
+// -----------------------------------------------------------------------------
+// DELETE EXPENSE
+// -----------------------------------------------------------------------------
+// Firestore uses deleteDoc(...) to delete document with specified id
 
 export const deleteExpense = async (id) => {
-  expenses = expenses.filter((expense) => expense.id !== id);
-  notifyListeners();
+  await ensureAnonymousAuth();
+
+  const expenseRef = doc(db, EXPENSES_COLLECTION, id);
+  await deleteDoc(expenseRef);
 };
 
 // -----------------------------------------------------------------------------
-// STUB: REALTIME SUBSCRIPTION
+// REALTIME SUBSCRIPTION
 // -----------------------------------------------------------------------------
-// - Firestore branch: use onSnapshot(...)
-// - MongoDB branch: remove
+// Firestore uses onSnapshot(...)
 // Must return an unsubscribe function so App.jsx can clean it up.
 
-export const subscribeToExpenses = (callback) => {
-  listeners.push(callback);
-  callback([...expenses].sort((a, b) => b.date.localeCompare(a.date)));
+export const subscribeToExpenses = async (callback) => {
+  const user = await ensureAnonymousAuth();
 
-  return () => {
-    listeners = listeners.filter((listener) => listener !== callback);
-  };
+  const expensesRef = collection(db, EXPENSES_COLLECTION);
+  const expensesQuery = query(
+    expensesRef,
+    where("userId", "==", user.uid),
+    orderBy("date", "desc"),
+  );
+
+  // onSnapshot starts a live listener: everytime data changes, the subscribe callback runs
+  const unsubscribe = onSnapshot(
+    expensesQuery,
+    (snapshot) => {
+      const expenses = snapshot.docs.map((documentSnapshot) => ({
+        id: documentSnapshot.id,
+        ...documentSnapshot.data(),
+      }));
+
+      callback(expenses); // ~ setExpenses(data)
+    },
+    (error) => {
+      console.error("Firestore subscribe error:", error);
+    },
+  );
+
+  // unsubscribe - the fn wrapping the listener logic is returned because that is how u cleanup the listener
+  return unsubscribe;
 };
