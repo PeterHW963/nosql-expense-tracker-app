@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import { getDB } from "../config/db.js";
+import { getDB, getClient } from "../config/db.js";
 
 // helper to get expenses collection
 function getExpensesCollection() {
@@ -69,29 +69,44 @@ export async function getAllExpenses(req, res) {
 }
 
 export async function createExpense(req, res) {
+  // transaction session - its a client session that basically bundles multiple operations as 1 --> making it atomic
+  const session = getClient().startSession();
+
   try {
     const validationError = validateExpenseBody(req.body);
     if (validationError) {
       return res.status(400).json({ message: validationError });
     }
 
-    const newExpense = buildExpenseDocument(req.body);
+    let createdExpense;
+    await session.withTransaction(async () => {
+      const newExpense = buildExpenseDocument(req.body);
 
-    const result = await getExpensesCollection().insertOne(newExpense);
-    // insert one returns a field insertedId containg the _id value of the inserted document.
+      const result = await getExpensesCollection().insertOne(newExpense, {
+        session,
+      });
+      // insert one returns a field insertedId containg the _id value of the inserted document.
 
-    const createdExpense = await getExpensesCollection().findOne({
-      _id: result.insertedId,
+      createdExpense = await getExpensesCollection().findOne(
+        {
+          _id: result.insertedId,
+        },
+        { session },
+      );
     });
 
     res.status(201).json(createdExpense);
   } catch (error) {
     console.error("Error creating expense:", error);
     res.status(500).json({ message: "Failed to create expense" });
+  } finally {
+    await session.endSession(); // clean up
   }
 }
 
 export async function updateExpense(req, res) {
+  const session = getClient().startSession();
+
   try {
     const { id } = req.params;
 
@@ -104,35 +119,40 @@ export async function updateExpense(req, res) {
       return res.status(400).json({ message: validationError });
     }
 
-    const updatedExpense = {
-      name: String(req.body.name).trim(),
-      category: String(req.body.category).trim(),
-      date: new Date(req.body.date),
-      amount: Number(req.body.amount),
-      location: req.body.location ? String(req.body.location).trim() : "",
-      description: req.body.description
-        ? String(req.body.description).trim()
-        : "",
-      updatedAt: new Date(),
-    };
+    let savedExpense;
 
-    const result = await getExpensesCollection().updateOne(
-      { _id: new ObjectId(id) },
-      { $set: updatedExpense },
-    );
-    // updateOne returns matchedCount field containing # of matched docs
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ message: "Expense not found" });
-    }
+    await session.withTransaction(async () => {
+      const updatedExpense = {
+        name: String(req.body.name).trim(),
+        category: String(req.body.category).trim(),
+        date: new Date(req.body.date),
+        amount: Number(req.body.amount),
+        location: req.body.location ? String(req.body.location).trim() : "",
+        description: req.body.description
+          ? String(req.body.description).trim()
+          : "",
+        updatedAt: new Date(),
+      };
 
-    const savedExpense = await getExpensesCollection().findOne({
-      _id: new ObjectId(id),
+      const result = await getExpensesCollection().updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updatedExpense },
+      );
+      // updateOne returns matchedCount field containing # of matched docs
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ message: "Expense not found" });
+      }
+      savedExpense = await getExpensesCollection().findOne({
+        _id: new ObjectId(id),
+      });
     });
 
     res.status(200).json(savedExpense);
   } catch (error) {
     console.error("Error updating expense:", error);
     res.status(500).json({ message: "Failed to update expense" });
+  } finally {
+    await session.endSession(); // clean up
   }
 }
 
