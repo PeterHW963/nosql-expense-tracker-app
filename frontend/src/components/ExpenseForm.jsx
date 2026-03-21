@@ -17,7 +17,7 @@ function ExpenseForm({
       setFormData({
         ...editingExpense,
         date: editingExpense.date
-          ? new Date(editingExpense.date).toISOString().split("T")[0]
+          ? new Date(editingExpense.date).toISOString().split("T")[0] // important: date format in mongo is diff from javascript date format
           : "",
         amount: editingExpense.amount?.toString() ?? "",
       });
