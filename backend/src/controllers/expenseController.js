@@ -1,5 +1,10 @@
 import { ObjectId } from "mongodb";
 import { getDB, getClient } from "../config/db.js";
+import { getRedis } from "../config/redis.js";
+
+// Redis constants
+const CACHE_KEY = "expenses:all";
+const CACHE_TTL = Number(process.env.REDIS_TTL || 300);
 
 // helper to get expenses collection
 function getExpensesCollection() {
@@ -56,10 +61,24 @@ function buildExpenseDocument(body) {
 
 export async function getAllExpenses(req, res) {
   try {
+    const redis = getRedis();
+    const cachedExpenses = await redis.get(CACHE_KEY);
+
+    if (cachedExpenses) {
+      console.log("Cache hit");
+      return res.status(200).json(JSON.parse(cachedExpenses));
+    }
+    console.log("Cache miss");
+
     const expenses = await getExpensesCollection()
       .find({})
       .sort({ date: -1, createdAt: -1 }) // sort desc date first, then desc createdAt
       .toArray();
+
+    // make cache of the query result
+    await redis.set(CACHE_KEY, JSON.stringify(expenses), {
+      EX: CACHE_TTL,
+    });
 
     res.status(200).json(expenses);
   } catch (error) {
@@ -94,6 +113,8 @@ export async function createExpense(req, res) {
         { session },
       );
     });
+    // Upon write, cache is stale, so we delete. Do outside transaction cus transactn is only for Mongo operatns
+    await getRedis().del(CACHE_KEY);
 
     res.status(201).json(createdExpense);
   } catch (error) {
@@ -137,15 +158,19 @@ export async function updateExpense(req, res) {
       const result = await getExpensesCollection().updateOne(
         { _id: new ObjectId(id) },
         { $set: updatedExpense },
+        { session },
       );
       // updateOne returns matchedCount field containing # of matched docs
       if (result.matchedCount === 0) {
         return res.status(404).json({ message: "Expense not found" });
       }
-      savedExpense = await getExpensesCollection().findOne({
-        _id: new ObjectId(id),
-      });
+      savedExpense = await getExpensesCollection().findOne(
+        { _id: new ObjectId(id) },
+        { session },
+      );
     });
+    // upon update, cache stale -> delete
+    await getRedis().del(CACHE_KEY);
 
     res.status(200).json(savedExpense);
   } catch (error) {
@@ -172,6 +197,9 @@ export async function deleteExpense(req, res) {
       return res.status(404).json({ message: "Expense not found" });
     }
 
+    // upon delete, cache is stale -> delete cache
+    await getRedis().del(CACHE_KEY);
+
     res.status(200).json({ message: "Expense deleted successfully" });
   } catch (error) {
     console.error("Error deleting expense:", error);
@@ -179,3 +207,4 @@ export async function deleteExpense(req, res) {
   }
 }
 // NOTE FOR DELETE AND UPDATE, there are more succinct ways to do it: using findOneAndUpdate or findOneAndDelete. Can explore on your own
+// NOTE Redis cache operations are outside the mongo transaction - it's eventually consistent
