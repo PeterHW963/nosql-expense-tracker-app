@@ -42,21 +42,6 @@ let expenses = [
 ];
 
 // -----------------------------------------------------------------------------
-// STUB REALTIME LISTENER
-// -----------------------------------------------------------------------------
-// This simulates Firestore's real-time subscription behavior on the frontend.
-// Later:
-// - Firestore branch: replace with onSnapshot(...)
-// - MongoDB branch: can remove
-
-let listeners = [];
-
-const notifyListeners = () => {
-  const snapshot = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
-  listeners.forEach((listener) => listener(snapshot));
-};
-
-// -----------------------------------------------------------------------------
 // STUB READ ALL
 // -----------------------------------------------------------------------------
 // - Firestore branch: query Firestore collection/documents
@@ -80,7 +65,6 @@ export const createExpense = async (expenseData) => {
   };
 
   expenses = [newExpense, ...expenses];
-  notifyListeners();
   return newExpense;
 };
 
@@ -100,8 +84,6 @@ export const updateExpense = async (id, updatedData) => {
         }
       : expense,
   );
-
-  notifyListeners();
 };
 
 // -----------------------------------------------------------------------------
@@ -112,7 +94,6 @@ export const updateExpense = async (id, updatedData) => {
 
 export const deleteExpense = async (id) => {
   expenses = expenses.filter((expense) => expense.id !== id);
-  notifyListeners();
 };
 
 // -----------------------------------------------------------------------------
@@ -122,11 +103,6 @@ export const deleteExpense = async (id) => {
 // - MongoDB branch: remove
 // Must return an unsubscribe function so App.jsx can clean it up.
 
-export const subscribeToExpenses = (callback) => {
-  listeners.push(callback);
-  callback([...expenses].sort((a, b) => b.date.localeCompare(a.date)));
-
-  return () => {
-    listeners = listeners.filter((listener) => listener !== callback);
-  };
+export const subscribeToExpenses = () => {
+  // TO IMPLEMENT
 };
