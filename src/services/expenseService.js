@@ -41,8 +41,11 @@ export const listExpenses = async () => {
     where("userId", "==", user.uid),
     orderBy("date", "desc"),
   );
-  await getDocs(getExpensesQuery);
-  return;
+  const querySnapshot = await getDocs(getExpensesQuery);
+  return querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
 };
 
 // -----------------------------------------------------------------------------
