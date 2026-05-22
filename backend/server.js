@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import expenseRoutes from "./routes/expenseRoutes.js";
 import { connectDB } from "./config/db.js";
 
 dotenv.config();
@@ -19,6 +20,7 @@ app.use(
 );
 
 app.use(express.json());
+app.use("/api/expenses", expenseRoutes);
 
 async function startServer() {
   try {
