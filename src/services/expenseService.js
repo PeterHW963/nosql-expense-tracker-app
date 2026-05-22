@@ -12,34 +12,9 @@
  *
  * Nothing in this file writes to a real database yet.
  */
+import { db } from "../config/firebase";
 
-// -----------------------------------------------------------------------------
-// TEMPORARY MOCK DATA
-// -----------------------------------------------------------------------------
-// This is NOT real seed data for Firestore or MongoDB.
-// It only exists in browser memory so the UI has sample rows on first load only.
-// If you want a blank initial UI. Just do expenses = []
-
-let expenses = [
-  {
-    id: "1",
-    name: "Lunch",
-    category: "Food",
-    date: "2026-03-19",
-    amount: 6.0,
-    location: "Deck",
-    description: "Japanese Chicken Katsu Curry Rice",
-  },
-  {
-    id: "2",
-    name: "Bus back home",
-    category: "Transport",
-    date: "2026-03-18",
-    amount: 1.6,
-    location: "",
-    description: "",
-  },
-];
+const EXPENSES_COLLECTION = "expenses";
 
 // -----------------------------------------------------------------------------
 // STUB READ ALL
