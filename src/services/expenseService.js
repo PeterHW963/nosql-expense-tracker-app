@@ -12,7 +12,18 @@
  *
  * Nothing in this file writes to a real database yet.
  */
-import { db } from "../config/firebase";
+import {
+  collection,
+  query,
+  addDoc,
+  where,
+  orderBy,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc,
+} from "firebase/firestore";
+import { anonymousAuth, db } from "../config/firebase";
 
 const EXPENSES_COLLECTION = "expenses";
 
@@ -23,7 +34,15 @@ const EXPENSES_COLLECTION = "expenses";
 // - MongoDB branch: fetch from REST API endpoint like GET /expenses
 
 export const listExpenses = async () => {
-  return [...expenses].sort((a, b) => b.date.localeCompare(a.date));
+  const user = await anonymousAuth();
+  const expensesCollectionRef = collection(db, EXPENSES_COLLECTION);
+  const getExpensesQuery = query(
+    expensesCollectionRef,
+    where("userId", "==", user.uid),
+    orderBy("date", "desc"),
+  );
+  await getDocs(getExpensesQuery);
+  return;
 };
 
 // -----------------------------------------------------------------------------
@@ -33,14 +52,18 @@ export const listExpenses = async () => {
 // - MongoDB branch: REST API endpoint POST /expenses
 
 export const createExpense = async (expenseData) => {
+  const user = await anonymousAuth();
   const newExpense = {
-    ...expenseData,
-    id: crypto.randomUUID(),
+    name: expenseData.name,
+    category: expenseData.category,
+    date: expenseData.date,
     amount: Number(expenseData.amount),
+    location: expenseData.location || "",
+    description: expenseData.description || "",
+    userId: user.uid,
   };
-
-  expenses = [newExpense, ...expenses];
-  return newExpense;
+  await addDoc(collection(db, EXPENSES_COLLECTION), newExpense);
+  return;
 };
 
 // -----------------------------------------------------------------------------
@@ -50,15 +73,19 @@ export const createExpense = async (expenseData) => {
 // - MongoDB branch: REST API endpoint PUT /expenses/:id
 
 export const updateExpense = async (id, updatedData) => {
-  expenses = expenses.map((expense) =>
-    expense.id === id
-      ? {
-          ...expense,
-          ...updatedData,
-          amount: Number(updatedData.amount),
-        }
-      : expense,
-  );
+  await anonymousAuth();
+
+  const expenseRef = doc(db, EXPENSES_COLLECTION, id);
+
+  await updateDoc(expenseRef, {
+    name: updatedData.name,
+    category: updatedData.category,
+    date: updatedData.date,
+    amount: Number(updatedData.amount),
+    location: updatedData.location || "",
+    description: updatedData.description || "",
+  });
+  return;
 };
 
 // -----------------------------------------------------------------------------
@@ -68,7 +95,11 @@ export const updateExpense = async (id, updatedData) => {
 // - MongoDB branch: REST API endpoint DELETE /expenses/:id
 
 export const deleteExpense = async (id) => {
-  expenses = expenses.filter((expense) => expense.id !== id);
+  await anonymousAuth();
+
+  const expenseRef = doc(db, EXPENSES_COLLECTION, id);
+  await deleteDoc(expenseRef);
+  return;
 };
 
 // -----------------------------------------------------------------------------
