@@ -13,33 +13,7 @@
  * Nothing in this file writes to a real database yet.
  */
 
-// -----------------------------------------------------------------------------
-// TEMPORARY MOCK DATA
-// -----------------------------------------------------------------------------
-// This is NOT real seed data for Firestore or MongoDB.
-// It only exists in browser memory so the UI has sample rows on first load only.
-// If you want a blank initial UI. Just do expenses = []
-
-let expenses = [
-  {
-    id: "1",
-    name: "Lunch",
-    category: "Food",
-    date: "2026-03-19",
-    amount: 6.0,
-    location: "Deck",
-    description: "Japanese Chicken Katsu Curry Rice",
-  },
-  {
-    id: "2",
-    name: "Bus back home",
-    category: "Transport",
-    date: "2026-03-18",
-    amount: 1.6,
-    location: "",
-    description: "",
-  },
-];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // -----------------------------------------------------------------------------
 // STUB READ ALL
@@ -48,7 +22,12 @@ let expenses = [
 // - MongoDB branch: fetch from REST API endpoint like GET /expenses
 
 export const listExpenses = async () => {
-  return [...expenses].sort((a, b) => b.date.localeCompare(a.date));
+  const response = await fetch(`${API_BASE_URL}/expenses`);
+  const data = response.json();
+  if (!response.ok) {
+    console.error(data.message);
+  }
+  return data;
 };
 
 // -----------------------------------------------------------------------------
@@ -58,14 +37,21 @@ export const listExpenses = async () => {
 // - MongoDB branch: REST API endpoint POST /expenses
 
 export const createExpense = async (expenseData) => {
-  const newExpense = {
-    ...expenseData,
-    id: crypto.randomUUID(),
-    amount: Number(expenseData.amount),
-  };
+  const response = await fetch(`${API_BASE_URL}/expenses`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json", // u need this to tell API that the body of req is JSON
+    },
+    body: JSON.stringify(expenseData),
+  });
 
-  expenses = [newExpense, ...expenses];
-  return newExpense;
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error(data.message);
+  }
+
+  return data;
 };
 
 // -----------------------------------------------------------------------------
@@ -75,15 +61,20 @@ export const createExpense = async (expenseData) => {
 // - MongoDB branch: REST API endpoint PUT /expenses/:id
 
 export const updateExpense = async (id, updatedData) => {
-  expenses = expenses.map((expense) =>
-    expense.id === id
-      ? {
-          ...expense,
-          ...updatedData,
-          amount: Number(updatedData.amount),
-        }
-      : expense,
-  );
+  const response = await fetch(`${API_BASE_URL}/expenses/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(updatedData),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error(data.message);
+  }
+  return data;
 };
 
 // -----------------------------------------------------------------------------
@@ -93,7 +84,14 @@ export const updateExpense = async (id, updatedData) => {
 // - MongoDB branch: REST API endpoint DELETE /expenses/:id
 
 export const deleteExpense = async (id) => {
-  expenses = expenses.filter((expense) => expense.id !== id);
+  const response = await fetch(`${API_BASE_URL}/expenses/${id}`, {
+    method: "DELETE",
+  });
+  const data = response.json();
+  if (!response.ok) {
+    console.error(data.message);
+  }
+  return data;
 };
 
 // -----------------------------------------------------------------------------
