@@ -7,6 +7,7 @@ import {
   deleteExpense,
   listExpenses,
   updateExpense,
+  subscribeToExpenses,
 } from "./services/expenseService";
 
 // Toggle this:
@@ -21,17 +22,27 @@ function App() {
   const [lastEvent, setLastEvent] = useState("");
   const [isFormExpanded, setIsFormExpanded] = useState(false);
 
-  const loadExpenses = async () => {
-    try {
-      const data = await listExpenses();
-      setExpenses(data);
-    } catch (error) {
-      console.error("Failed to load expenses:", error);
-    }
-  };
-
   useEffect(() => {
-    loadExpenses();
+    let unsubscribe;
+
+    const setupSubscription = async () => {
+      try {
+        unsubscribe = await subscribeToExpenses((data) => {
+          setExpenses(data);
+        });
+      } catch (error) {
+        console.error("Failed to subscribe to expenses:", error);
+      }
+    };
+
+    setupSubscription();
+
+    // the fn below is invoked when u unmount the component
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   const handleSubmitExpense = async (expenseData) => {
@@ -47,8 +58,6 @@ function App() {
         await createExpense(expenseData);
         setLastEvent(`Created "${expenseData.name}"`);
       }
-
-      await loadExpenses();
     } catch (error) {
       console.error("Failed to save expense:", error);
       setLastEvent("Error while saving");
@@ -76,8 +85,6 @@ function App() {
         setEditingExpense(null);
         setIsFormExpanded(false);
       }
-
-      await loadExpenses();
     } catch (error) {
       console.error("Failed to delete expense:", error);
       setLastEvent("Error while deleting");

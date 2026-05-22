@@ -22,6 +22,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  onSnapshot,
 } from "firebase/firestore";
 import { anonymousAuth, db } from "../config/firebase";
 
@@ -112,6 +113,31 @@ export const deleteExpense = async (id) => {
 // - MongoDB branch: remove
 // Must return an unsubscribe function so App.jsx can clean it up.
 
-export const subscribeToExpenses = () => {
-  // TO IMPLEMENT
+export const subscribeToExpenses = async (callback) => {
+  const user = await anonymousAuth();
+  const expensesRef = collection(db, EXPENSES_COLLECTION);
+  const expensesQuery = query(
+    expensesRef,
+    where("userId", "==", user.uid),
+    orderBy("date", "desc"),
+  );
+
+  // onSnapshot starts a live listener: everytime data changes, the subscribe callback runs
+  const unsubscribe = onSnapshot(
+    expensesQuery,
+    (snapshot) => {
+      const expenses = snapshot.docs.map((documentSnapshot) => ({
+        id: documentSnapshot.id,
+        ...documentSnapshot.data(),
+      }));
+
+      callback(expenses); // ~ setExpenses(data)
+    },
+    (error) => {
+      console.error("Firestore subscribe error:", error);
+    },
+  );
+
+  // unsubscribe - the fn wrapping the listener logic is returned because that is how u cleanup the listener
+  return unsubscribe;
 };
