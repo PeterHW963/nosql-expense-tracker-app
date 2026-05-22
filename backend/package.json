@@ -108,7 +108,9 @@
     "whatwg-url": "^14.2.0",
     "wrappy": "^1.0.2"
   },
+  "type": "module",
   "scripts": {
+    "dev": "nodemon ./server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
