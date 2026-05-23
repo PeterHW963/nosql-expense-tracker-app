@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import expenseRoutes from "./routes/expenseRoutes.js";
 import { connectDB } from "./config/db.js";
+import { connectRedis } from "./config/redis.js";
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use("/api/expenses", expenseRoutes);
 async function startServer() {
   try {
     await connectDB();
+    await connectRedis();
     app.listen(PORT, () => {
       console.log(`Server running at http://localhost:${PORT}`);
     });
