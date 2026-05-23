@@ -27,6 +27,14 @@ export async function connectDB() {
   return database;
 }
 
+// helper to expose client
+export function getClient() {
+  if (!client) {
+    throw new Error("Mongo client not initialized. Call connectDB()");
+  }
+  return client;
+}
+
 export function getDB() {
   if (!database) {
     throw new Error("Database not initialized. Call connectDB()");

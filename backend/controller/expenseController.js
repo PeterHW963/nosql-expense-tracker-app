@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import { getDB } from "../config/db.js";
+import { getClient, getDB } from "../config/db.js";
 
 // helper to get expenses collection
 function getExpensesCollection() {
@@ -69,25 +69,36 @@ export async function getAllExpenses(req, res) {
 }
 
 export async function createExpense(req, res) {
+  const session = getClient().startSession();
   try {
     const validationError = validateExpenseBody(req.body);
     if (validationError) {
       return res.status(400).json({ message: validationError });
     }
 
-    const newExpense = buildExpenseDocument(req.body);
+    let createdExpense;
+    await session.withTransaction(async () => {
+      const newExpense = buildExpenseDocument(req.body);
 
-    const result = await getExpensesCollection().insertOne(newExpense);
-    // insert one returns a field insertedId containg the _id value of the inserted document.
+      const result = await getExpensesCollection().insertOne(newExpense, {
+        session,
+      });
+      // insert one returns a field insertedId containg the _id value of the inserted document.
 
-    const createdExpense = await getExpensesCollection().findOne({
-      _id: result.insertedId,
+      createdExpense = await getExpensesCollection().findOne(
+        {
+          _id: result.insertedId,
+        },
+        { session },
+      );
     });
 
     res.status(201).json(createdExpense);
   } catch (error) {
     console.error("Error creating expense:", error);
     res.status(500).json({ message: "Failed to create expense" });
+  } finally {
+    await session.endSession();
   }
 }
 
