@@ -1,5 +1,9 @@
 import { ObjectId } from "mongodb";
 import { getClient, getDB } from "../config/db.js";
+import { getRedis } from "../config/redis.js";
+
+const CACHE_KEY = "expenses:all";
+const CACHE_TTL = Number(process.env.REDIS_TTL);
 
 // helper to get expenses collection
 function getExpensesCollection() {
@@ -56,10 +60,24 @@ function buildExpenseDocument(body) {
 
 export async function getAllExpenses(req, res) {
   try {
+    const redis = getRedis();
+    const cachedExpenses = await redis.get(CACHE_KEY);
+
+    if (cachedExpenses) {
+      console.log("cache hit");
+      return res.status(200).json(JSON.parse(cachedExpenses));
+    }
+    console.log("cache miss");
+
     const expenses = await getExpensesCollection()
       .find({})
       .sort({ date: -1, createdAt: -1 }) // sort desc date first, then desc createdAt
       .toArray();
+
+    // make cache of the query result
+    await redis.set(CACHE_KEY, JSON.stringify(expenses), {
+      EX: CACHE_TTL,
+    });
 
     res.status(200).json(expenses);
   } catch (error) {
@@ -92,6 +110,8 @@ export async function createExpense(req, res) {
         { session },
       );
     });
+
+    await getRedis().del(CACHE_KEY);
 
     res.status(201).json(createdExpense);
   } catch (error) {
