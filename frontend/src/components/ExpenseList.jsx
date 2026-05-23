@@ -26,7 +26,7 @@ function ExpenseList({ expenses, onEdit, onDelete }) {
         <div className="expense-list">
           {expenses.map((expense) => (
             <ExpenseItem
-              key={expense.id}
+              key={expense._id}
               expense={expense}
               onEdit={onEdit}
               onDelete={onDelete}

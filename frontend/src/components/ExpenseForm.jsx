@@ -16,6 +16,9 @@ function ExpenseForm({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         ...editingExpense,
+        date: editingExpense.date
+          ? new Date(editingExpense.date).toISOString().split("T")[0]
+          : "",
         amount: editingExpense.amount?.toString() ?? "",
       });
     } else {
